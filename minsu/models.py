@@ -11,9 +11,11 @@ class User(models.Model):
     id = models.IntegerField(primary_key=True)
     finish = models.BooleanField()
     music_file = models.FileField(upload_to=directory_path, null=True)
+    music_file_converted = models.FileField(upload_to=directory_path, null=True)
+    name = models.CharField(max_length=20, null=True)
 
     def __str__(self):
-        return self.id
+        return str(self.id)
 
     def check_finish(self):
         return self.finish
