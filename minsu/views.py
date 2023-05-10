@@ -1,3 +1,5 @@
+import time
+from threading import Thread
 from django.shortcuts import render
 from .models import User
 from django.http import HttpResponse, JsonResponse, FileResponse
@@ -23,20 +25,21 @@ class UsersView(View):
 
     def post(self, request):
         current_id = len(User.objects.all()) + 1
+        thread = Thread(target=convert, args=[current_id])
         user = User(id=current_id,
                     finish=False,
                     music_file=request.FILES['audio'],
                     name=request.POST['name'])
         user_list[current_id] = user
         user.save()
-
         # 모델 돌려야 함
-        convert(current_id)
-
+        thread.start()
         print('id :', user)
         return HttpResponse(current_id, status=200)
 
+
 def convert(id):
+    time.sleep(10)
     user = user_list[id]
     path = user.music_file.name
     sp = path.split('.')
@@ -46,8 +49,7 @@ def convert(id):
     # the converting process should be located here
     # the converted file should be saved at convereted_path
     copyfile('./media/' + path, './media/' + converted_path)
-    
 
-    user.music_file_converted.name = converted_path;
+    user.music_file_converted.name = converted_path
     user.finish = True
-    user.save(update_fields=['music_file_converted'])
+    user.save(update_fields=['music_file_converted', "finish"])
