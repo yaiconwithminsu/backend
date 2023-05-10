@@ -1,4 +1,7 @@
 import time
+import os
+import torchaudio
+import torch
 from threading import Thread
 from django.shortcuts import render
 from .models import User
@@ -41,15 +44,56 @@ class UsersView(View):
 
 
 def convert(id):
+    # Getting Filename
     user = user_list[id]
     path = user.music_file.name
     sp = path.split('.')
     converted_path = sp[0] + '_converted.wav'
-    print(path, 'to', converted_path)
+    print('start converting', path, 'to', converted_path)
+    
+    # Voice & Accompaniment split
+    os.system(f'spleeter separate ./media/{path} -p spleeter:2stems -o ./media/user_{user}/')
+    
+    voice_path = f'./media/{sp[0]}/vocals.wav'
+    accomp_path = f'./media/{sp[0]}/accompaniment.wav'
+
+    voice_converted_path = f'./media/{sp[0]}/vocals_converted.wav'
 
     # SVC
-    convert_audio('./media/' + path, './media/' + converted_path, model_chim)
+    print('start SVC')
+    convert_audio(voice_path, voice_converted_path, model_chim)
 
+    print('start Combine')
+    # Combine Voice & Accompaniment
+    sound_voice_converted, srn_voice = torchaudio.load(voice_converted_path)
+    sound_accomp, srn_accomp = torchaudio.load(accomp_path)
+    accomp_size = sound_accomp.size(dim = 1)
+    voice_size = sound_voice_converted.size(dim = 1)
+    accomp_ch = sound_accomp.size(dim = 0)
+    voice_ch = sound_voice_converted.size(dim = 0)
+    
+    if accomp_ch != voice_ch:
+        # Channel Num Conflict -> Convert to Mono Channel
+        sound_voice_converted = sound_voice_converted.mean(dim=0).view(1, -1)
+        sound_accomp = sound_accomp.mean(dim=0).view(1, -1)
+        accomp_ch = 1
+        voice_ch = 1
+
+    if accomp_size != voice_size:
+        # Sound Length Conflict
+        sound_len = max(accomp_size, voice_size)
+        combined_sounds = torch.zeros(accomp_ch, sound_len).float()
+        combined_sounds[:, :accomp_size] += sound_accomp
+        combined_sounds[:, :voice_size] += sound_voice_converted      
+    else :
+        combined_sounds = sound_voice_converted + sound_accomp
+    if srn_voice != srn_accomp:
+        print("ERROR, frequency conflicts")
+    
+    torchaudio.save('./media/' + converted_path, combined_sounds, srn_accomp)
+    
+
+    # Save at Database
     user.music_file_converted.name = converted_path
     user.finish = True
     user.save(update_fields=['music_file_converted', "finish"])
