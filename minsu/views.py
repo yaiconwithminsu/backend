@@ -7,8 +7,10 @@ from django.views import View
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
 from shutil import copyfile
+from infer import convert_audio
 
-
+from infer_tools.infer_tool import Svc
+model_chim = Svc('minsu', './checkpoints/minsu/config.yaml', True, './checkpoints/minsu/model_ckpt_steps_6000.ckpt')
 user_list = {}
 
 class UsersView(View):
@@ -39,16 +41,15 @@ class UsersView(View):
 
 
 def convert(id):
-    time.sleep(10)
     user = user_list[id]
     path = user.music_file.name
     sp = path.split('.')
-    converted_path = sp[0] + '_converted.' + sp[1]
+    converted_path = sp[0] + '_converted.wav'
     print(path, 'to', converted_path)
 
     # the converting process should be located here
     # the converted file should be saved at convereted_path
-    copyfile('./media/' + path, './media/' + converted_path)
+    convert_audio('./media/' + path, './media/' + converted_path, model_chim)
 
     user.music_file_converted.name = converted_path
     user.finish = True
