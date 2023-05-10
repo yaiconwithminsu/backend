@@ -2,7 +2,7 @@ import time
 import os
 import torchaudio
 import torch
-from threading import Thread
+from threading import Thread, Lock
 from django.shortcuts import render
 from .models import User
 from django.http import HttpResponse, JsonResponse, FileResponse
@@ -13,8 +13,11 @@ from shutil import copyfile
 from infer import convert_audio
 
 from infer_tools.infer_tool import Svc
+
+
 model_chim = Svc('minsu', './checkpoints/minsu/config.yaml', True, './checkpoints/minsu/model_ckpt_steps_6000.ckpt')
 user_list = {}
+lock = Lock()
 
 class UsersView(View):
     def get(self, request):
@@ -50,6 +53,10 @@ def convert(id):
     sp = path.split('.')
     converted_path = sp[0] + '_converted.wav'
     print('start converting', path, 'to', converted_path)
+
+    # We are using only one GPU, in race condition
+    # using mutex to make an critical section
+    lock.acquire()
     
     # Voice & Accompaniment split
     os.system(f'spleeter separate ./media/{path} -p spleeter:2stems -o ./media/user_{user}/')
@@ -62,6 +69,10 @@ def convert(id):
     # SVC
     print('start SVC')
     convert_audio(voice_path, voice_converted_path, model_chim)
+
+    # End of critical section
+    # Below this, this thread will never use GPU
+    lock.release()
 
     print('start Combine')
     # Combine Voice & Accompaniment
