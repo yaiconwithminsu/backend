@@ -47,8 +47,7 @@ def convert(id):
     converted_path = sp[0] + '_converted.wav'
     print(path, 'to', converted_path)
 
-    # the converting process should be located here
-    # the converted file should be saved at convereted_path
+    # SVC
     convert_audio('./media/' + path, './media/' + converted_path, model_chim)
 
     user.music_file_converted.name = converted_path
