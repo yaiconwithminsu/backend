@@ -99,5 +99,5 @@ def convert_audio(in_path, out_path, model):
     accelerate = 20
     hubert_gpu = True
     form='wav'
-    run_clip(model, key=0, acc=accelerate, use_crepe=True, thre=0.05, use_pe=True, use_gt_mel=False,
+    run_clip(model, key=0, acc=accelerate, use_crepe=False, thre=0.05, use_pe=True, use_gt_mel=False,
                  add_noise_step=500, project_name='minsu', format=form, file_path = in_path, out_path = out_path)

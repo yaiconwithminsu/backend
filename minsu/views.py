@@ -26,6 +26,8 @@ class UsersView(View):
         
         if current_id > 0:
             return HttpResponse(user_list[current_id].finish, status=200)
+        elif current_id == 0:
+            return HttpResponse(True, status=200)
         else:
             file_path = user_list[-current_id].music_file_converted.path
             audio = open(file_path, 'rb')
