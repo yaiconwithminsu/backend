@@ -14,8 +14,9 @@ from infer import convert_audio
 
 from infer_tools.infer_tool import Svc
 
+model_minsu = Svc('minsu', './checkpoints/minsu/config.yaml', True, './checkpoints/minsu/model_ckpt_steps_12000.ckpt')
+model_chim = Svc('chim_model2', './checkpoints/chim_model2/config.yaml', True, './checkpoints/chim_model2/model_ckpt_steps_40000.ckpt')
 
-model_chim = Svc('minsu', './checkpoints/minsu/config.yaml', True, './checkpoints/minsu/model_ckpt_steps_6000.ckpt')
 user_list = {}
 lock = Lock()
 
@@ -35,7 +36,7 @@ class UsersView(View):
 
     def post(self, request):
         current_id = len(User.objects.all()) + 1
-        thread = Thread(target=convert, args=[current_id])
+        thread = Thread(target=convert, args=[current_id, request.POST['name']])
         user = User(id=current_id,
                     finish=False,
                     music_file=request.FILES['audio'],
@@ -48,7 +49,7 @@ class UsersView(View):
         return HttpResponse(current_id, status=200)
 
 
-def convert(id):
+def convert(id, name):
     # Getting Filename
     user = user_list[id]
     path = user.music_file.name
@@ -70,7 +71,10 @@ def convert(id):
 
     # SVC
     print('start SVC')
-    convert_audio(voice_path, voice_converted_path, model_chim)
+    if name == '민수':
+        convert_audio(voice_path, voice_converted_path, model_minsu)
+    else:
+        convert_audio(voice_path, voice_converted_path, model_chim)
 
     # End of critical section
     # Below this, this thread will never use GPU
@@ -97,7 +101,7 @@ def convert(id):
         sound_len = max(accomp_size, voice_size)
         combined_sounds = torch.zeros(accomp_ch, sound_len).float()
         combined_sounds[:, :accomp_size] += sound_accomp
-        combined_sounds[:, :voice_size] += sound_voice_converted      
+        combined_sounds[:, :voice_size] += sound_voice_converted * 2
     else :
         combined_sounds = sound_voice_converted + sound_accomp
     if srn_voice != srn_accomp:
